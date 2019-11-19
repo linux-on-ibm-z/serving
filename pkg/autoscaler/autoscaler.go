@@ -232,8 +232,13 @@ func (a *Autoscaler) Scale(ctx context.Context, now time.Time) (desiredPodCount 
 	case a.deciderSpec.TargetBurstCapacity == 0:
 		excessBC = 0
 	case a.deciderSpec.TargetBurstCapacity >= 0:
-		excessBC = int32(math.Floor(float64(originalReadyPodsCount)*a.deciderSpec.TotalValue - observedStableValue -
-			a.deciderSpec.TargetBurstCapacity))
+		initBC := float64(originalReadyPodsCount)*a.deciderSpec.TotalValue - observedStableValue -
+			a.deciderSpec.TargetBurstCapacity
+		if (initBC > 0) {
+			excessBC = int32(math.Ceil(initBC))
+		} else {
+			excessBC = int32(math.Floor(initBC))
+		}
 		logger.Infof("PodCount=%v Total1PodCapacity=%v ObservedStableValue=%v TargetBC=%v ExcessBC=%v",
 			originalReadyPodsCount,
 			a.deciderSpec.TotalValue,
