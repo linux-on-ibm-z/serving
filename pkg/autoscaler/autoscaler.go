@@ -235,7 +235,7 @@ func (a *Autoscaler) Scale(ctx context.Context, now time.Time) (desiredPodCount 
 		initBC := float64(originalReadyPodsCount)*a.deciderSpec.TotalValue - observedStableValue -
 			a.deciderSpec.TargetBurstCapacity
 		if (initBC > 0) {
-			excessBC = int32(math.Ceil(initBC))
+			excessBC = int32(math.Round(initBC))
 		} else {
 			excessBC = int32(math.Floor(initBC))
 		}
