@@ -807,6 +807,16 @@ func CreateTLSSecretWithCertPool(t *testing.T, clients *test.Clients, hosts []st
 //	}
 func CreateDialContext(t *testing.T, ing *v1alpha1.Ingress, clients *test.Clients) func(context.Context, string, string) (net.Conn, error) {
 	t.Helper()
+
+	// Allow "ingressendpoint" flag to override any discovered ingress IP/hostname,
+	// this is required in minikube-like environments.
+	dial := network.NewBackoffDialer(dialBackoff)
+	if pkgTest.Flags.IngressEndpoint != "" {
+		return func(ctx context.Context, _ string, address string) (net.Conn, error) {
+			return dial(ctx, "tcp", pkgTest.Flags.IngressEndpoint)
+		}
+	}
+
 	if ing.Status.PublicLoadBalancer == nil || len(ing.Status.PublicLoadBalancer.Ingress) < 1 {
 		t.Fatal("Ingress does not have a public load balancer assigned.")
 	}
@@ -832,16 +842,10 @@ func CreateDialContext(t *testing.T, ing *v1alpha1.Ingress, clients *test.Client
 		t.Fatal("Service does not have any ingresses (not type LoadBalancer?).")
 	}
 	ingress := svc.Status.LoadBalancer.Ingress[0]
-	dial := network.NewBackoffDialer(dialBackoff)
 	return func(ctx context.Context, _ string, address string) (net.Conn, error) {
 		_, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return nil, err
-		}
-		// Allow "ingressendpoint" flag to override the discovered ingress IP/hostname,
-		// this is required in minikube-like environments.
-		if pkgTest.Flags.IngressEndpoint != "" {
-			return dial(ctx, "tcp", pkgTest.Flags.IngressEndpoint)
 		}
 		if ingress.IP != "" {
 			return dial(ctx, "tcp", ingress.IP+":"+port)
